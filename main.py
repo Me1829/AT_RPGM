@@ -2,12 +2,15 @@ import json
 import re
 import time
 from deep_translator import GoogleTranslator
-from os import system
+from os import system,path,mkdir
+from glob import glob
 
 system("clear")
 
-INPUT_FILE = input("Name file : ")
-OUTPUT_FILE = input("Result Name file : ")
+if not path.isdir("hasil"):
+    mkdir("hasil")
+
+NAMA_FILE = glob("../*.json")
 
 print ("\n")
 import lgm
@@ -92,14 +95,6 @@ pattern = re.compile(
 def contains_japanese(text):
     return bool(pattern.search(text))
 
-
-with open(INPUT_FILE, "r", encoding="utf-8") as f:
-    data = json.load(f)
-
-
-cache = {}
-
-
 def translate_block(text):
     if text in cache:
         return cache[text]
@@ -124,61 +119,70 @@ def translate_block(text):
         print ("ERROR:", e)
         return text
 
+for LOOP_FILE in NAMA_FILE:
 
-for common_event in data:
+    with open(LOOP_FILE, "r", encoding="utf-8") as f:
+        data = json.load(f)
 
-    if not common_event:
-        continue
 
-    if "list" not in common_event:
-        continue
+    cache = {}
 
-    cmds = common_event["list"]
 
-    i = 0
+    for common_event in data:
 
-    while i < len(cmds):
+        if not common_event:
+            continue
 
-        cmd = cmds[i]
+        if "list" not in common_event:
+            continue
 
-        if cmd.get("code") == 401:
+        cmds = common_event["list"]
 
-            block_indexes = []
-            block_texts = []
+        i = 0
 
-            while i < len(cmds) and cmds[i].get("code") == 401:
+        while i < len(cmds):
 
-                txt = cmds[i]["parameters"][0]
+            cmd = cmds[i]
 
-                block_indexes.append(i)
-                block_texts.append(txt)
+            if cmd.get("code") == 401:
 
+                block_indexes = []
+                block_texts = []
+
+                while i < len(cmds) and cmds[i].get("code") == 401:
+
+                    txt = cmds[i]["parameters"][0]
+
+                    block_indexes.append(i)
+                    block_texts.append(txt)
+
+                    i += 1
+
+                joined = "\n".join(block_texts)
+
+                if joined.strip():
+
+                    translated = translate_block(joined)
+
+                    if not translated:
+                        translated = joined
+
+                    split_lines = str(translated).split("\n")
+
+                    while len(split_lines) < len(block_indexes):
+                        split_lines.append("")
+
+                    for idx, line in zip(block_indexes, split_lines):
+                        cmds[idx]["parameters"][0] = line
+
+            else:
                 i += 1
 
-            joined = "\n".join(block_texts)
+    FINAL_FILE = "hasil/"+LOOP_FILE
 
-            if joined.strip():
-
-                translated = translate_block(joined)
-
-                if not translated:
-                    translated = joined
-
-                split_lines = str(translated).split("\n")
-
-                while len(split_lines) < len(block_indexes):
-                    split_lines.append("")
-
-                for idx, line in zip(block_indexes, split_lines):
-                    cmds[idx]["parameters"][0] = line
-
-        else:
-            i += 1
+    with open(FINAL_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
 
 
-with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
-    json.dump(data, f, ensure_ascii=False, indent=2)
-
-
-print ("DONE")
-print ("Saved as:", OUTPUT_FILE)
+    print ("DONE")
+    print ("Saved as:", FINAL_FILE)
