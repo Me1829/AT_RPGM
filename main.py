@@ -79,6 +79,11 @@ pattern = re.compile(
     # Ethiopic
     r'\u1200-\u137F'
 
+    # Latin Extended (Vietnam, Eropa Timur, dll)
+    r'\u00C0-\u00FF'
+    r'\u0100-\u017F'
+    r'\u0180-\u024F'
+
     # Fullwidth chars
     r'\uFF00-\uFFEF'
 
@@ -116,7 +121,7 @@ def translate_block(text):
         print (translated)
         print ("========================")
 
-        time.sleep(0.5)
+        time.sleep(0.2)
 
         return translated
 
@@ -124,16 +129,20 @@ def translate_block(text):
         print ("ERROR:", e)
         return text
 
+def get_lists(obj):
+    if isinstance(obj, dict):
+        if "list" in obj and isinstance(obj["list"], list):
+            yield obj["list"]
 
-for common_event in data:
+        for value in obj.values():
+            yield from get_lists(value)
 
-    if not common_event:
-        continue
+    elif isinstance(obj, list):
+        for item in obj:
+            yield from get_lists(item)
 
-    if "list" not in common_event:
-        continue
 
-    cmds = common_event["list"]
+for cmds in get_lists(data):
 
     i = 0
 
@@ -177,7 +186,7 @@ for common_event in data:
 
 
 with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
-    json.dump(data, f, ensure_ascii=False, indent=2)
+    json.dump(data, f, ensure_ascii=False)
 
 
 print ("DONE")
